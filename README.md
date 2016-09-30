@@ -6,7 +6,7 @@ PrettyTable : Print any list, vector or map as a well-formatted readable table.
 
 * This module provides simple functions used to print values in tabular format
 * Version 0.1.0
-* Contributes and Bug Reports Welcome
+* Contributions and Bug Reports Welcome. Please use the Github issue tracker.
 
 ### Examples ###
 
