@@ -6,11 +6,11 @@ homepage:            https://github.com/gdevanla/pptable#readme
 license:             MIT
 license-file:        LICENSE
 author:              Guru Devanla
-maintainer:          grdnvl@gmail.com
+maintainer:          grdvnl@gmail.com
 copyright:           2016 Guru Devanla
 category:            Text
 build-type:          Simple
--- extra-source-files:
+extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
