@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ConstrainedClassMethods #-}
 
 -- | Module implements the default methods for Tabilize
 
@@ -93,7 +94,7 @@ isAlgRepConstr t = case dataTypeRep . dataTypeOf $ t of
 -- | Specialized class that provides default methods
 -- methods to print List, Map or Vector values as a
 -- pretty table
-class Tabilize a where
+class (Data a) => Tabilize a where
   -- | Return a list of values wrapped in a Box. Each entry in input is assumed to be a
   -- list of records keyed by any data type. The first entry in the
   -- list of values will be used to infer the names of fields
@@ -138,7 +139,7 @@ class Tabilize a where
   -- > "amzn"     "AMZN"     799.161717      3.7886e11
   -- > "goog"     "GOOG"     774.210101      5.3209e11
   -- > "yhoo"     "YHOO"     42.2910101         4.0e10
-  printMap :: (Show b, Data a) => Map.Map b a -> IO ()
+  printMap :: (Show b) => Map.Map b a -> IO ()
   printMap m = do
     let r = head . Map.elems $ m
     let header = constrFields . toConstr $ r
@@ -155,7 +156,7 @@ class Tabilize a where
   -- > "YHOO"     42.2910101         4.0e10
   -- > "GOOG"     774.210101      5.3209e11
   -- > "AMZN"     799.161717      3.7886e11
-  printList :: (Data a) => [a] -> IO ()
+  printList :: [a] -> IO ()
   printList m = do
     let r = head $ m
     let header = constrFields . toConstr $ r
@@ -173,7 +174,7 @@ class Tabilize a where
   -- > "YHOO"     42.2910101         4.0e10
   -- > "GOOG"     774.210101      5.3209e11
   -- > "AMZN"     799.161717      3.7886e11
-  printVector :: (Data a) => V.Vector a -> IO ()
+  printVector :: V.Vector a -> IO ()
   printVector m = do
     let r = m V.! 0
     let header = constrFields . toConstr $ r
