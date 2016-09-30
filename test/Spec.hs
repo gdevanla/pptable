@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE ConstrainedClassMethods #-}
 
 import Test.Tasty
 import Data.Map as M
@@ -23,11 +24,11 @@ data R0 =  R0 {test_string::String,
                test_double::Double}
   deriving (Data, Show, G.Generic)
 data R01 =  R01 {r1_id::Int, nested_r::R0}
-  deriving (Show, G.Generic)
+  deriving (Show, G.Generic, Data)
 data R3 =  R3 {r3_id::Int, nested_rlist::[R0]}
-  deriving (Show, G.Generic)
+  deriving (Show, G.Generic, Data)
 data R4 = R4 {r4_id::Int, nested_rtuple::(R0,R0)}
-  deriving (Show, G.Generic)
+  deriving (Show, G.Generic, Data)
 
 instance Tabilize R0
 instance Tabilize R01
