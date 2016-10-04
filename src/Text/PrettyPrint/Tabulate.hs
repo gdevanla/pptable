@@ -11,10 +11,9 @@
 
 module Text.PrettyPrint.Tabulate
     (
-      Tabulate
-    , Boxable
+      Tabulate(..)
+    , Boxable(..)
     , CellValueFormatter
-    , ppTable
     
     )where
 
