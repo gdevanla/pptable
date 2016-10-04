@@ -1,5 +1,5 @@
 name:                pptable
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Pretty Print containers in a tabular format
 description:         Please see README.md
 homepage:            https://github.com/gdevanla/pptable#readme
@@ -10,12 +10,12 @@ maintainer:          grdvnl@gmail.com
 copyright:           2016 Guru Devanla
 category:            Text
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  README.md, CHANGELOG.md
 cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Text.PrettyPrint.Tabilize, Text.PrettyPrint.PrettyTable
+  exposed-modules:     Text.PrettyPrint.Tabulate, Text.PrettyPrint.Tabulate.Example
   build-depends:       base >= 4.7 && < 5
                      , syb
                      , containers
