@@ -44,4 +44,4 @@ test-suite pptable-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/pptable
+  location: https://github.com/gdevanla/pptable

@@ -44,21 +44,24 @@ Text.PrettyPrint.Tabulate : Print any list, vector or map as a well-formatted re
 
   -- Print table from List
   T.ppTable tickers
-  ticker     price              marketCap
-  YHOO         42.291010100     4.000000000e10
-  GOOG        774.210101000     5.320900000e11
+   ticker     price              marketCap
+   YHOO         42.291010100     4.000000000e10
+   GOOG        774.210101000     5.320900000e11
+   AMZN        799.161717000     3.788600000e11
 
-  -- Print table from Map
-  T.ppTable tickers_map
-  Key      ticker     price              marketCap
-  10       YHOO         42.291010100     4.000000000e10
-  10       GOOG        774.210101000     5.320900000e11
+   -- Print table from Map
+   T.ppTable tickers_map
+   Key      ticker     price              marketCap
+   10       YHOO         42.291010100     4.000000000e10
+   100      GOOG        774.210101000     5.320900000e11
+   1000     AMZN        799.161717000     3.788600000e11
 
 
-  -- Print table from Vector
-  T.ppTable tickers_vector
-  ticker     price              marketCap
-  YHOO         42.291010100     4.000000000e10
-  GOOG        774.210101000     5.320900000e11
+   -- Print table from Vector
+   T.ppTable tickers_vector
+   ticker     price              marketCap
+   YHOO         42.291010100     4.000000000e10
+   GOOG        774.210101000     5.320900000e11
+   AMZN        799.161717000     3.788600000e11
 
 ```

@@ -144,19 +144,20 @@ import Text.PrettyPrint.Tabulate
 -- > -- Or in a Vector
 -- > let tickers_vector = Vector.fromList tickers
 
-
 -- $output
 -- > -- Print table from List
 -- > T.ppTable tickers
 -- > ticker     price              marketCap
 -- > YHOO         42.291010100     4.000000000e10
 -- > GOOG        774.210101000     5.320900000e11
+-- > AMZN        799.161717000     3.788600000e11
 -- >
 -- > -- Print table from Map
--- > T.ppTable tickers_map
+-- >T.ppTable tickers_map
 -- > Key      ticker     price              marketCap
 -- > 10       YHOO         42.291010100     4.000000000e10
--- > 10       GOOG        774.210101000     5.320900000e11
+-- > 100      GOOG        774.210101000     5.320900000e11
+-- > 1000     AMZN        799.161717000     3.788600000e11
 -- >
 -- >
 -- > -- Print table from Vector
@@ -164,7 +165,9 @@ import Text.PrettyPrint.Tabulate
 -- > ticker     price              marketCap
 -- > YHOO         42.291010100     4.000000000e10
 -- > GOOG        774.210101000     5.320900000e11
+-- > AMZN        799.161717000     3.788600000e11
 -- >
+
 
 
 -- $boxable_instance
