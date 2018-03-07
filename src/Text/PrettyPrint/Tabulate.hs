@@ -199,12 +199,9 @@ instance (CellValueFormatter k) => Boxable (Map.Map k) where
 
 -- Internal helper functions
 
-printPath :: Tree a -> [[a]]
-printPath (Node r []) = [[r]]
-printPath (Node r f) = let
-  p = [r:x | x <- (L.concatMap printPath f)]
-  in
-  p
+constructPath :: Tree a -> [[a]]
+constructPath (Node r []) = [[r]]
+constructPath (Node r f) = [r:x | x <- (L.concatMap constructPath f)]
 
 fillPath paths = stripped_paths where
   depth = L.maximum $ L.map L.length paths
@@ -246,8 +243,8 @@ data T1 = C2 { t1:: T, bInt::Float, bString::String} deriving (Data, Typeable, S
 
 c1 = C1 1000 "record_c1fdsafaf"
 c2 = C2 c1 100.12121 "record_c2"
-c3 = C2 c1 10010101.12111 "record_c2fdsafdsafsafdsafasfa"
-c4 = C2 c1 1001010010101.12121 "r"
+c3 = C2 c1 1001.12111 "record_c2fdsafdsafsafdsafasfa"
+c4 = C2 c1 22222.12121 "r"
 
 instance Tabulate T HTrue
 instance Tabulate T1 HTrue
@@ -281,7 +278,7 @@ ppRecordsWithIndex recs = result where
 recsToTrees recs = fmap (\a -> Node "root" $ (toTree . G.from $ a)) $ recs
 
 getHeaderDepth rec_trees = header_depth where
-  header_depth = L.length . L.head . fillPath . printPath . trimTree . L.head $ rec_trees
+  header_depth = L.length . L.head . fillPath . constructPath . trimTree . L.head $ rec_trees
 
 createBoxedHeaders :: [[String]] -> [B.Box]
 createBoxedHeaders paths = boxes where
@@ -289,7 +286,7 @@ createBoxedHeaders paths = boxes where
   wrapWithBox p = B.vsep 0 B.top $ L.map B.text p
 
 createHeaderCols rec_trees = header_boxes where
-  header_boxes =  createBoxedHeaders . fillPath . printPath . trimTree . L.head $ rec_trees
+  header_boxes =  createBoxedHeaders . fillPath . constructPath . trimTree . L.head $ rec_trees
 
 createDataBoxes rec_trees = vertical_boxes where
   horizontal_boxes =  fmap (fmap  B.text) $ fmap getLeaves rec_trees
