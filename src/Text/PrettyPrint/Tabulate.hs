@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveGeneric #-} -- Remove this
 {-# LANGUAGE DeriveDataTypeable #-} -- Remove this
 {-# LANGUAGE UndecidableInstances #-}
@@ -18,12 +19,12 @@
 -- | Module implements the default methods for Tabulate
 
 module Text.PrettyPrint.Tabulate
-  --(
-  -- Tabulate(..)
+  -- (
+  --  Tabulate(..)
   -- , Boxable(..)
   -- , CellValueFormatter
   -- , HTrue
-  --)
+  -- )
 where
 
 import Data.Maybe
@@ -146,7 +147,7 @@ instance CellValueFormatter Int where
 
 
 instance CellValueFormatter Float where
-  ppFormatter x = printf "%14.9g" x
+  ppFormatter x = printf "%14.7g" x
 
   ppFormatterWithStyle style x = case floatValueFormat style of
     Just f -> f x
@@ -161,7 +162,7 @@ instance CellValueFormatter String where
 
 
 instance CellValueFormatter Double where
-  ppFormatter x = printf "%14.9g" x
+  ppFormatter x = printf "%14.7g" x
 
   ppFormatterWithStyle style x = case doubleValueFormat style of
     Just f -> f x
@@ -238,24 +239,6 @@ getLeaves (Node r f) = case f of
   [] -> [(ppFormatter r)]
   _ -> foldMap getLeaves f
 
-data T = C1 { aInt::Int, aString::String} deriving (Data, Typeable, Show,G.Generic)
-data T1 = C2 { t1:: T, bInt::Float, bString::String} deriving (Data, Typeable, Show, G.Generic)
-
-c1 = C1 1000 "record_c1fdsafaf"
-c2 = C2 c1 100.12121 "record_c2"
-c3 = C2 c1 1001.12111 "record_c2fdsafdsafsafdsafasfa"
-c4 = C2 c1 22222.12121 "r"
-
-instance Tabulate T HTrue
-instance Tabulate T1 HTrue
-instance CellValueFormatter T
-
-data R2 = R2 {a::Maybe Integer} deriving (G.Generic, Show)
-data R3 = R3 {r31::Maybe Integer, r32::String} deriving (G.Generic, Show)
-tr =  Node "root" (toTree . G.from $ c2)
-r2 = Node "root" (toTree . G.from $ (R2 (Just 10)))
-r3 = Node "root" (toTree . G.from $ (R3 (Just 10) "r3_string"))
-
 showTree :: (Show a) => Tree a -> Tree String
 showTree (Node r f) = case f of
   [] -> Node (show r) []
@@ -303,3 +286,32 @@ createHeaderDataBoxes recs = vertical_boxes where
   header_boxes = createHeaderCols rec_trees
   data_boxes = createDataBoxes rec_trees
   vertical_boxes = fmap (\(a, b) -> B.vsep 0 B.top $ [a, b]) $ L.zip header_boxes data_boxes
+
+
+-- testing
+
+data T = C1 { aInt::Double, aString::String} deriving (Data, Typeable, Show,G.Generic)
+data T1 = C2 { t1:: T, bInt::Double, bString::String} deriving (Data, Typeable, Show, G.Generic)
+
+c1 = C1 1000 "record_c1fdsafaf"
+c2 = C2 c1 100.12121 "record_c2"
+c3 = C2 c1 1001.12111 "record_c2fdsafdsafsafdsafasfa"
+c4 = C2 c1 22222.12121 "r"
+
+instance Tabulate T HTrue
+instance Tabulate T1 HTrue
+instance CellValueFormatter T
+
+data R2 = R2 {a::Maybe Integer} deriving (G.Generic, Show)
+data R3 = R3 {r31::Maybe Integer, r32::String} deriving (G.Generic, Show)
+tr =  Node "root" (toTree . G.from $ c2)
+r2 = Node "root" (toTree . G.from $ (R2 (Just 10)))
+r3 = Node "root" (toTree . G.from $ (R3 (Just 10) "r3_string"))
+
+data DisplayFld a = forall s. CellValueFormatter s => DFld (a->s)
+
+printTableWithFlds :: [DisplayFld t] -> [t] -> IO ()
+printTableWithFlds flds recs = results where
+  col_wise_values = fmap (\(DFld f) -> fmap (ppFormatter .f) recs) flds
+  vertical_boxes = fmap (B.vsep 0 B.top) $ fmap (fmap B.text) col_wise_values
+  results = B.printBox $ B.hsep 5 B.top vertical_boxes
