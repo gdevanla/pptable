@@ -12,7 +12,6 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ConstrainedClassMethods #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverlappingInstances #-}
 {-#LANGUAGE ScopedTypeVariables #-}
 
 
@@ -90,7 +89,7 @@ class Tabulate a flag | a->flag where {}
 
 --instance TypeCast flag HFalse => Tabulate a flag
 
-instance (flag ~ HFalse) => Tabulate a flag
+instance {-# OVERLAPPABLE #-} (flag ~ HFalse) => Tabulate a flag
 
 class RecordMeta a where
   toTree':: a -> [Tree String]
@@ -172,6 +171,14 @@ instance CellValueFormatter Bool
 
 instance (Show a, CellValueFormatter a) => CellValueFormatter (Maybe a)
 
+
+renderTableWithFlds :: [DisplayFld t] -> [t] -> B.Box
+renderTableWithFlds flds recs = results where
+  col_wise_values = fmap (\(DFld f) -> fmap (ppFormatter .f) recs) flds
+  vertical_boxes = fmap (B.vsep 0 B.top) $ fmap (fmap B.text) col_wise_values
+  results = B.hsep 5 B.top vertical_boxes
+
+
 class Boxable b where
   -- toBox :: (Data a, G.Generic a, GRecordMeta(Rep a)) => b a ->  [[B.Box]]
   -- toBoxWithStyle :: (Data a, G.Generic a, GTabulate(Rep a)) => TablizeValueFormat -> b a ->  [[B.Box]]
@@ -179,15 +186,22 @@ class Boxable b where
   printTable :: (G.Generic a, GRecordMeta (Rep a)) => b a -> IO ()
   --printTableWithStyle :: (Data a, G.Generic a, GTabulate(Rep a)) => TablizeValueFormat -> b a -> IO ()
 
+  printTableWithFlds :: [DisplayFld t] -> b t -> IO ()
+
 instance Boxable [] where
   -- | Prints a "List" as a table. Called by "ppTable"
   -- | Need not be called directly
   printTable m = ppRecords m
 
+  printTableWithFlds flds recs = B.printBox $ renderTableWithFlds flds recs
+
+
 instance Boxable V.Vector where
   -- | Prints a "Vector" as a table. Called by "ppTable"
   -- | Need not be called directly
   printTable m = ppRecords $ V.toList m  --TODO: switch this to Vector
+
+  printTableWithFlds flds recs = B.printBox $ renderTableWithFlds flds $ V.toList recs
 
 
 instance (CellValueFormatter k) => Boxable (Map.Map k) where
@@ -196,6 +210,11 @@ instance (CellValueFormatter k) => Boxable (Map.Map k) where
   -- | Need not be called directly
   printTable m = ppRecordsWithIndex m
 
+  printTableWithFlds flds recs = results where
+    data_cols = renderTableWithFlds flds $ Map.elems recs
+    index_cols = B.vsep 0 B.top $ fmap (B.text . ppFormatter) $ Map.keys recs
+    vertical_cols = B.hsep 5 B.top [index_cols, data_cols]
+    results = B.printBox vertical_cols
 
 
 -- Internal helper functions
@@ -310,8 +329,14 @@ r3 = Node "root" (toTree . G.from $ (R3 (Just 10) "r3_string"))
 
 data DisplayFld a = forall s. CellValueFormatter s => DFld (a->s)
 
-printTableWithFlds :: [DisplayFld t] -> [t] -> IO ()
-printTableWithFlds flds recs = results where
-  col_wise_values = fmap (\(DFld f) -> fmap (ppFormatter .f) recs) flds
-  vertical_boxes = fmap (B.vsep 0 B.top) $ fmap (fmap B.text) col_wise_values
-  results = B.printBox $ B.hsep 5 B.top vertical_boxes
+
+
+-- printTableWithFlds2 :: [DisplayFld t] -> V.Vector t -> IO ()
+-- printTableWithFlds2 flds recs = B.printBox $ printTableWithFlds flds $ V.toList recs
+
+-- printTableWithFlds3 :: (CellValueFormatter k) => [DisplayFld t] -> Map.Map k t -> IO ()
+-- printTableWithFlds3 flds recs = results where
+--   data_cols = printTableWithFlds flds $ Map.elems recs
+--   index_cols = B.vsep 0 B.top $ fmap (B.text . ppFormatter) $ Map.keys recs
+--   vertical_cols = B.hsep 5 B.top [index_cols, data_cols]
+--   results = B.printBox vertical_cols
