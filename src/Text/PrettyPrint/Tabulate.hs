@@ -18,12 +18,12 @@
 -- | Module implements the default methods for Tabulate
 
 module Text.PrettyPrint.Tabulate
-  -- (
-  --  Tabulate(..)
-  -- , Boxable(..)
-  -- , CellValueFormatter
-  -- , HTrue
-  -- )
+  (
+    Tabulate(..)
+  , Boxable(..)
+  , CellValueFormatter
+  , ExpandWhenNested
+   )
 where
 
 import Data.Maybe
@@ -83,13 +83,22 @@ instance (CellValueFormatter a, Data a, RecordMeta a) => GRecordMeta (K1 i a) wh
   --toTree x = [Node (show (unK1 x)) (toTree' $ unK1 x)]
   toTree x = toTree' $ unK1 x
 
-data HTrue
-data HFalse
+-- | Use this flag to expand a Record Type as a table when
+-- nested inside another record.
+data ExpandWhenNested
+
+-- | Use this flag to not expand a Recort  Type as a table when
+-- nested inside another record. The 'Show' instance of the nested record
+-- is used by default without expanding. This means that the fields of the
+-- nested record are not displayed as separate headers.
+data DoNotExpandWhenNested
+
+-- Class instance that needs to be instantiated for each
+-- record that needs to be printed using printTable
 class Tabulate a flag | a->flag where {}
 
 --instance TypeCast flag HFalse => Tabulate a flag
-
-instance {-# OVERLAPPABLE #-} (flag ~ HFalse) => Tabulate a flag
+instance {-# OVERLAPPABLE #-} (flag ~ DoNotExpandWhenNested) => Tabulate a flag
 
 class RecordMeta a where
   toTree':: a -> [Tree String]
@@ -100,12 +109,11 @@ instance (Tabulate a flag, RecordMeta' flag a) => RecordMeta a where
 class RecordMeta' flag a where
   toTree'':: proxy flag -> a -> [Tree String]
 
-instance (G.Generic a, GRecordMeta (Rep a)) => RecordMeta' HTrue a where
+instance (G.Generic a, GRecordMeta (Rep a)) => RecordMeta' ExpandWhenNested a where
   toTree'' _ a = toTree (G.from a)
 
-instance (CellValueFormatter a) => RecordMeta' HFalse a where
+instance (CellValueFormatter a) => RecordMeta' DoNotExpandWhenNested a where
   toTree'' _ a = [Node (ppFormatter a) []]
-
 
 
 -- |  Class that implements formatting using printf.
@@ -189,18 +197,22 @@ class Boxable b where
   printTableWithFlds :: [DisplayFld t] -> b t -> IO ()
 
 instance Boxable [] where
-  -- | Prints a "List" as a table. Called by "ppTable"
+  -- | Prints a "List" as a table. Called by "printTable"
   -- | Need not be called directly
   printTable m = ppRecords m
 
+  -- | Print a "List" of records as a table with just the given fields.
+  -- Called by "printTableWithFlds".
   printTableWithFlds flds recs = B.printBox $ renderTableWithFlds flds recs
 
 
 instance Boxable V.Vector where
-  -- | Prints a "Vector" as a table. Called by "ppTable"
+  -- | Prints a "Vector" as a table. Called by "printTable".
   -- | Need not be called directly
   printTable m = ppRecords $ V.toList m  --TODO: switch this to Vector
 
+  -- | Print a "Vector" of records as a table with the selected fields.
+  -- Called by "printTableWithFlds".
   printTableWithFlds flds recs = B.printBox $ renderTableWithFlds flds $ V.toList recs
 
 
@@ -210,6 +222,8 @@ instance (CellValueFormatter k) => Boxable (Map.Map k) where
   -- | Need not be called directly
   printTable m = ppRecordsWithIndex m
 
+  -- | Prints a "Map" as a table with the selected fields. Called by "printTable"
+  -- | Need not be called directly
   printTableWithFlds flds recs = results where
     data_cols = renderTableWithFlds flds $ Map.elems recs
     index_cols = B.vsep 0 B.top $ fmap (B.text . ppFormatter) $ Map.keys recs
@@ -219,16 +233,22 @@ instance (CellValueFormatter k) => Boxable (Map.Map k) where
 
 -- Internal helper functions
 
+-- Build the list of paths from the root to every leaf.
 constructPath :: Tree a -> [[a]]
 constructPath (Node r []) = [[r]]
 constructPath (Node r f) = [r:x | x <- (L.concatMap constructPath f)]
 
+-- Fill paths with a "-" so that all paths have the
+-- same length.
 fillPath paths = stripped_paths where
   depth = L.maximum $ L.map L.length paths
   diff = L.map (\p -> depth - (L.length p)) paths
   new_paths = L.map (\(p,d) ->  p ++ L.replicate d "-") $ L.zip paths diff
   stripped_paths = [xs | x:xs <- new_paths]
 
+-- Count the number of fields in the passed structure.
+-- The no of leaves is the sum of all fields across all nested
+-- records in the passed structure.
 countLeaves :: Tree a -> Tree (Int, a)
 countLeaves (Node r f) = case f of
   [] -> Node (1, r) []
@@ -239,8 +259,11 @@ countLeaves (Node r f) = case f of
       in
       Node (level_count, r) count_leaves
 
+-- Trims a the tree of records and return just the
+-- leaves of the record
 trimTree (Node r f) = trimLeaves r f
 
+-- Helper function called by trimTree.
 trimLeaves r f = Node r (trimLeaves' f) where
   trimLeaves' f =
     let result = fmap trimLeaves'' f where
@@ -253,30 +276,38 @@ trimLeaves r f = Node r (trimLeaves' f) where
     in
       catMaybes result
 
+-- Get  all the leaves from the record. Returns all leaves
+-- across the record structure.
 getLeaves :: (CellValueFormatter a) => Tree a -> [String]
 getLeaves (Node r f) = case f of
   [] -> [(ppFormatter r)]
   _ -> foldMap getLeaves f
 
-showTree :: (Show a) => Tree a -> Tree String
-showTree (Node r f) = case f of
-  [] -> Node (show r) []
-  x -> showTree' x where
-    showTree' x = let
-      show_children = fmap showTree x
-      in
-      Node (show r) show_children
+-- Function used for debugging built trees
+-- showTree :: (Show a) => Tree a -> Tree String
+-- showTree (Node r f) = case f of
+--   [] -> Node (show r) []
+--   x -> showTree' x where
+--     showTree' x = let
+--       show_children = fmap showTree x
+--       in
+--       Node (show r) show_children
 
+-- Pretty Print the reords as a table. Handles both records inside
+-- Lists and Vectors
 ppRecords :: (GRecordMeta (Rep a), G.Generic a) => [a] -> IO ()
 ppRecords recs = result where
   result = B.printBox $ B.hsep 5 B.top $ createHeaderDataBoxes recs
 
+-- Pretty Print the records as a table. Handles records contained in a Map.
+-- Functions also prints the keys as the index of the table.
 ppRecordsWithIndex :: (CellValueFormatter k, GRecordMeta (Rep a), G.Generic a) => (Map.Map k a) -> IO ()
 ppRecordsWithIndex recs = result where
   data_boxes = createHeaderDataBoxes $ Map.elems recs
   index_box = createIndexBoxes recs
   result = B.printBox $ B.hsep 5 B.top $ index_box:data_boxes
 
+-- What follows are helper functions to build the B.Box structure to print as table.
 recsToTrees recs = fmap (\a -> Node "root" $ (toTree . G.from $ a)) $ recs
 
 getHeaderDepth rec_trees = header_depth where
@@ -317,8 +348,8 @@ c2 = C2 c1 100.12121 "record_c2"
 c3 = C2 c1 1001.12111 "record_c2fdsafdsafsafdsafasfa"
 c4 = C2 c1 22222.12121 "r"
 
-instance Tabulate T HTrue
-instance Tabulate T1 HTrue
+instance Tabulate T ExpandWhenNested
+instance Tabulate T1 ExpandWhenNested
 instance CellValueFormatter T
 
 data R2 = R2 {a::Maybe Integer} deriving (G.Generic, Show)
@@ -328,8 +359,6 @@ r2 = Node "root" (toTree . G.from $ (R2 (Just 10)))
 r3 = Node "root" (toTree . G.from $ (R3 (Just 10) "r3_string"))
 
 data DisplayFld a = forall s. CellValueFormatter s => DFld (a->s)
-
-
 
 -- printTableWithFlds2 :: [DisplayFld t] -> V.Vector t -> IO ()
 -- printTableWithFlds2 flds recs = B.printBox $ printTableWithFlds flds $ V.toList recs

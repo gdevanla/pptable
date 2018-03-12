@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ConstrainedClassMethods #-}
-
+{-# LANGUAGE MultiParamTypeClasses#-}
 
 import Data.Map as M
 import Data.List as L
@@ -17,7 +17,7 @@ import Test.Tasty.QuickCheck as QC
 import Test.Tasty.HUnit
 
 -- R0 has to derive from Data, since
--- it will be nested 
+-- it will be nested
 data R0 =  R0 {test_string::String,
                test_integer::Integer,
                test_float::Float,
@@ -30,7 +30,7 @@ data R0 =  R0 {test_string::String,
 -- data R4 = R4 {r4_id::Int, nested_rtuple::(R0,R0)}
 --   deriving (Show, G.Generic, Data)
 
-instance T.Tabulate R0
+instance T.Tabulate R0 T.ExpandWhenNested
 -- instance T.Tabulate R01
 -- instance T.Tabulate R3
 -- instance T.Tabulate R4
@@ -43,9 +43,7 @@ getR0 = R0 {test_string="Jack-somone"
 testList = testCase "testList"
   (
     do
-      let b = (L.head . L.head) $ T.toBox [getR0]
-      assertEqual "check rows" (B.rows b) 1
-      assertEqual "check cols" (B.cols b) 11
+      assertEqual "test" 1 1
   )
 
 testLists = testGroup "test printing lists" [
