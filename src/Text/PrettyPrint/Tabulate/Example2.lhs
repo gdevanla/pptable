@@ -1,6 +1,6 @@
 -- | Example usage of ppTable library
 
-module Text.PrettyPrint.Tabulate.Example
+module Text.PrettyPrint.Tabulate.Example2
   (
 
     -- * Setup extensions
@@ -83,14 +83,22 @@ import Text.PrettyPrint.Tabulate
 -- The data type has to derive from 'Generic' and 'Data'.
 -- Also an default instance of 'Tabulate' is declared
 
-> data Stock = Stock {ticker::String, price::Double, marketCap::Double} deriving (Data, G.Generic)
+> data FxCode = USD | EUR | JPY deriving (Show, Data, G.Generic)
+> instance T.CellValueFormatter FxCode
+
+> data Price = Price {_price::Double, fx_code::FxCode} deriving (Data, G.Generic, Show)
+> instance T.Tabulate Price T.ExpandWhenNested
+
+> data Stock = Stock {ticker::String, local_price::Price, marketCap::Double} deriving (Data, G.Generic, Show)
 > instance T.Tabulate Stock T.ExpandWhenNested
+> instance T.CellValueFormatter Price
+
 
 -- $create_sample_data
 
-> yahoo =  Stock {ticker="YHOO", price=42.29101010, marketCap=40e9}
-> google = Stock {ticker="GOOG", price=774.210101, marketCap=532.09e9}
-> amazon = Stock {ticker="AMZN", price=799.161717, marketCap=378.86e9}
+> yahoo =  Stock {ticker="YHOO", local_price=Price 42.29101010 USD, marketCap=40e9}
+> google = Stock {ticker="GOOG", local_price=Price 774.210101 EUR, marketCap=532.09e9}
+> amazon = Stock {ticker="AMZN", local_price=Price 799.161717 JPY, marketCap=378.86e9}
 
 > -- List of Records
 > tickers = [yahoo, google, amazon]
