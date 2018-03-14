@@ -16,6 +16,18 @@
 
 
 -- | Module implements the default methods for Tabulate
+-- All examples listed in the document need the following language pragmas
+-- and following modules imported
+--
+-- @
+-- {#- LANGUAGE MultiParamTypeClasses}
+-- {#- LANGUAGE DeriveGeneric}
+-- {#- LANGUAGE DeriveDataTypeable}
+--
+-- import qualified GHC.Generics as G
+-- import Data.Data
+-- @
+--
 
 module Text.PrettyPrint.Tabulate
   (
@@ -23,6 +35,7 @@ module Text.PrettyPrint.Tabulate
   , Boxable(..)
   , CellValueFormatter
   , ExpandWhenNested
+  , DoNotExpandWhenNested
   , DisplayFld(..)
    )
 where
@@ -94,8 +107,23 @@ data ExpandWhenNested
 -- nested record are not displayed as separate headers.
 data DoNotExpandWhenNested
 
--- Class instance that needs to be instantiated for each
+-- | Class instance that needs to be instantiated for each
 -- record that needs to be printed using printTable
+--
+-- @
+--
+-- data Stock = Stock {price:: Double, name:: String} derive (Show, G.Generic, Data)
+-- instance Tabulate S 'ExpandWhenNested'
+-- @
+--
+-- If 'S' is embedded inside another `Record` type and should be
+-- displayed in regular Record Syntax, then
+--
+-- @
+--
+-- instance Tabulate S 'DoNotExpandWhenNested'
+-- @
+--
 class Tabulate a flag | a->flag where {}
 
 --instance TypeCast flag HFalse => Tabulate a flag
@@ -181,8 +209,8 @@ instance CellValueFormatter Bool
 instance (Show a, CellValueFormatter a) => CellValueFormatter (Maybe a)
 
 
-renderTableWithFlds :: [DisplayFld t] -> [t] -> B.Box
-renderTableWithFlds flds recs = results where
+gen_renderTableWithFlds :: [DisplayFld t] -> [t] -> B.Box
+gen_renderTableWithFlds flds recs = results where
   col_wise_values = fmap (\(DFld f) -> fmap (ppFormatter .f) recs) flds
   vertical_boxes = fmap (B.vsep 0 B.top) $ fmap (fmap B.text) col_wise_values
   results = B.hsep 5 B.top vertical_boxes
@@ -192,58 +220,124 @@ class Boxable b where
   -- toBox :: (Data a, G.Generic a, GRecordMeta(Rep a)) => b a ->  [[B.Box]]
   -- toBoxWithStyle :: (Data a, G.Generic a, GTabulate(Rep a)) => TablizeValueFormat -> b a ->  [[B.Box]]
 
+  -- | Used to print a container of Records in a tabular format.
+  --
+  -- @
+  --
+  -- data Stock = Stock {price:: Double, ticker:: String} deriving (Show, Data, G.Generic)
+  -- instance Tabulate Stock DoNotExpandWhenNested
+  -- -- this can be a Vector or Map
+  -- let s =  [Stock 10.0 "yahoo", Stock 12.0 "goog", Stock 10.0 "amz"]
+  -- T.printTable s
+  -- @
+  --
+  -- Nested records can also be printed in tabular format
+  --
+  -- @
+  --
+  -- data FxCode = USD | EUR deriving (Show, Data, G.Generic)
+  -- instance 'CellValueFormatter' FxCode
+  --
+  -- data Price = Price {px:: Double, fxCode:: FxCode} deriving (Show, Data, G.Generic)
+  -- instance 'Tabulate' Price 'ExpandWhenNested'
+  -- -- since Price will be nested, it also needs an instance of
+  -- -- CellValueFormatter
+  -- instance CellValueFormatter Price
+  --
+  -- data Stock = Stock {ticker:: String, price:: Price} deriving (Show, Data, G.Generic)
+  -- instance Tabulate Stock DoNotExpandWhenNested
+  --
+  -- -- this can be a Vector or Map
+  -- let s =  [Stock "yahoo" (Price 10.0 USD), Stock "ikea" (Price 11.0 EUR)]
+  -- printTable s
+  -- @
+  --
   printTable :: (G.Generic a, GRecordMeta (Rep a)) => b a -> IO ()
   --printTableWithStyle :: (Data a, G.Generic a, GTabulate(Rep a)) => TablizeValueFormat -> b a -> IO ()
 
+  -- | Similar to 'printTable' but rather than return IO (), returns a
+  -- 'Box' object that can be printed later on using 'printBox'
+  renderTable :: (G.Generic a, GRecordMeta (Rep a)) => b a -> B.Box
+
+  -- | Used for printing selected fields from Record types
+  -- This is useful when Records have a large number of fields
+  -- and only few fields need to be introspected at any time.
+  --
+  -- Using the example provided under 'printTables',
+  --
+  -- @
+  -- 'printTableWithFlds' [DFld (px . price), DFld ticker] s
+  --
+  -- @
   printTableWithFlds :: [DisplayFld t] -> b t -> IO ()
 
+  -- | Same as printTableWithFlds but returns a `Box` object, rather than
+  -- returning an `IO ()`.
+  renderTableWithFlds :: [DisplayFld t] -> b t -> B.Box
+
+-- | Instance methods to render or print a list of records in a tabular format.
 instance Boxable [] where
-  -- | Prints a "List" as a table. Called by "printTable"
-  -- | Need not be called directly
-  printTable m = ppRecords m
+  -- | Used to print a list of Records in a tabular format.
+  -- @
+  --
+  -- data Stock = Stock {price:: Double, ticker:: String}
+  -- instance Tabulate S DoNotExpandWhenNested
+  -- let s =  [Stock 10.0 "yahoo", Stock 12.0 "goog", Stock 10.0 "amz"]
+  -- T.printTable s
+  --
+  -- @
+  printTable m = B.printBox $ ppRecords m
+
+  renderTable m = ppRecords m
 
   -- | Print a "List" of records as a table with just the given fields.
   -- Called by "printTableWithFlds".
   printTableWithFlds flds recs = B.printBox $ renderTableWithFlds flds recs
+  renderTableWithFlds = gen_renderTableWithFlds
 
 
 instance Boxable V.Vector where
   -- | Prints a "Vector" as a table. Called by "printTable".
   -- | Need not be called directly
-  printTable m = ppRecords $ V.toList m  --TODO: switch this to Vector
+  printTable m = B.printBox $ renderTable m  --TODO: switch this to Vector
+  renderTable m = ppRecords $ V.toList m
 
   -- | Print a "Vector" of records as a table with the selected fields.
   -- Called by "printTableWithFlds".
   printTableWithFlds flds recs = B.printBox $ renderTableWithFlds flds $ V.toList recs
+  renderTableWithFlds flds recs = gen_renderTableWithFlds flds $ V.toList recs
 
 
 instance (CellValueFormatter k) => Boxable (Map.Map k) where
 
   -- | Prints a "Map" as a table. Called by "ppTable"
   -- | Need not be called directly
-  printTable m = ppRecordsWithIndex m
+  printTable m = B.printBox $ renderTable m
+  renderTable m = ppRecordsWithIndex m
 
   -- | Prints a "Map" as a table with the selected fields. Called by "printTable"
   -- | Need not be called directly
-  printTableWithFlds flds recs = results where
+  printTableWithFlds flds recs = B.printBox $ renderTableWithFlds flds recs
+
+  renderTableWithFlds flds recs = results where
     data_cols = renderTableWithFlds flds $ Map.elems recs
     index_cols = B.vsep 0 B.top $ fmap (B.text . ppFormatter) $ Map.keys recs
     vertical_cols = B.hsep 5 B.top [index_cols, data_cols]
-    results = B.printBox vertical_cols
+    results = vertical_cols
 
 -- Pretty Print the reords as a table. Handles both records inside
 -- Lists and Vectors
-ppRecords :: (GRecordMeta (Rep a), G.Generic a) => [a] -> IO ()
+ppRecords :: (GRecordMeta (Rep a), G.Generic a) => [a] -> B.Box
 ppRecords recs = result where
-  result = B.printBox $ B.hsep 5 B.top $ createHeaderDataBoxes recs
+  result = B.hsep 5 B.top $ createHeaderDataBoxes recs
 
 -- Pretty Print the records as a table. Handles records contained in a Map.
 -- Functions also prints the keys as the index of the table.
-ppRecordsWithIndex :: (CellValueFormatter k, GRecordMeta (Rep a), G.Generic a) => (Map.Map k a) -> IO ()
+ppRecordsWithIndex :: (CellValueFormatter k, GRecordMeta (Rep a), G.Generic a) => (Map.Map k a) -> B.Box
 ppRecordsWithIndex recs = result where
   data_boxes = createHeaderDataBoxes $ Map.elems recs
   index_box = createIndexBoxes recs
-  result = B.printBox $ B.hsep 5 B.top $ index_box:data_boxes
+  result = B.hsep 5 B.top $ index_box:data_boxes
 
 
 -- What follows are helper functions to build the B.Box structure to print as table.
@@ -353,6 +447,7 @@ tr =  Node "root" (toTree . G.from $ c2)
 r2 = Node "root" (toTree . G.from $ (R2 (Just 10)))
 r3 = Node "root" (toTree . G.from $ (R3 (Just 10) "r3_string"))
 
+-- | Used with 'printTableWithFlds'
 data DisplayFld a = forall s. CellValueFormatter s => DFld (a->s)
 
 -- printTableWithFlds2 :: [DisplayFld t] -> V.Vector t -> IO ()
