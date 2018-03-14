@@ -23,6 +23,7 @@ module Text.PrettyPrint.Tabulate
   , Boxable(..)
   , CellValueFormatter
   , ExpandWhenNested
+  , DisplayFld(..)
    )
 where
 
@@ -87,7 +88,7 @@ instance (CellValueFormatter a, Data a, RecordMeta a) => GRecordMeta (K1 i a) wh
 -- nested inside another record.
 data ExpandWhenNested
 
--- | Use this flag to not expand a Recort  Type as a table when
+-- | Use this flag to not expand a Record type as a table when
 -- nested inside another record. The 'Show' instance of the nested record
 -- is used by default without expanding. This means that the fields of the
 -- nested record are not displayed as separate headers.
@@ -230,8 +231,24 @@ instance (CellValueFormatter k) => Boxable (Map.Map k) where
     vertical_cols = B.hsep 5 B.top [index_cols, data_cols]
     results = B.printBox vertical_cols
 
+-- Pretty Print the reords as a table. Handles both records inside
+-- Lists and Vectors
+ppRecords :: (GRecordMeta (Rep a), G.Generic a) => [a] -> IO ()
+ppRecords recs = result where
+  result = B.printBox $ B.hsep 5 B.top $ createHeaderDataBoxes recs
 
--- Internal helper functions
+-- Pretty Print the records as a table. Handles records contained in a Map.
+-- Functions also prints the keys as the index of the table.
+ppRecordsWithIndex :: (CellValueFormatter k, GRecordMeta (Rep a), G.Generic a) => (Map.Map k a) -> IO ()
+ppRecordsWithIndex recs = result where
+  data_boxes = createHeaderDataBoxes $ Map.elems recs
+  index_box = createIndexBoxes recs
+  result = B.printBox $ B.hsep 5 B.top $ index_box:data_boxes
+
+
+-- What follows are helper functions to build the B.Box structure to print as table.
+
+-- Internal helper functions for building the Tree.
 
 -- Build the list of paths from the root to every leaf.
 constructPath :: Tree a -> [[a]]
@@ -283,31 +300,6 @@ getLeaves (Node r f) = case f of
   [] -> [(ppFormatter r)]
   _ -> foldMap getLeaves f
 
--- Function used for debugging built trees
--- showTree :: (Show a) => Tree a -> Tree String
--- showTree (Node r f) = case f of
---   [] -> Node (show r) []
---   x -> showTree' x where
---     showTree' x = let
---       show_children = fmap showTree x
---       in
---       Node (show r) show_children
-
--- Pretty Print the reords as a table. Handles both records inside
--- Lists and Vectors
-ppRecords :: (GRecordMeta (Rep a), G.Generic a) => [a] -> IO ()
-ppRecords recs = result where
-  result = B.printBox $ B.hsep 5 B.top $ createHeaderDataBoxes recs
-
--- Pretty Print the records as a table. Handles records contained in a Map.
--- Functions also prints the keys as the index of the table.
-ppRecordsWithIndex :: (CellValueFormatter k, GRecordMeta (Rep a), G.Generic a) => (Map.Map k a) -> IO ()
-ppRecordsWithIndex recs = result where
-  data_boxes = createHeaderDataBoxes $ Map.elems recs
-  index_box = createIndexBoxes recs
-  result = B.printBox $ B.hsep 5 B.top $ index_box:data_boxes
-
--- What follows are helper functions to build the B.Box structure to print as table.
 recsToTrees recs = fmap (\a -> Node "root" $ (toTree . G.from $ a)) $ recs
 
 getHeaderDepth rec_trees = header_depth where
@@ -318,13 +310,16 @@ createBoxedHeaders paths = boxes where
   boxes = L.map wrapWithBox paths
   wrapWithBox p = B.vsep 0 B.top $ L.map B.text p
 
+--createHeaderCols :: [Tree String] -> [B.Box]
 createHeaderCols rec_trees = header_boxes where
   header_boxes =  createBoxedHeaders . fillPath . constructPath . trimTree . L.head $ rec_trees
 
+--createDataBoxes :: [Tree a] -> [B.Box]
 createDataBoxes rec_trees = vertical_boxes where
   horizontal_boxes =  fmap (fmap  B.text) $ fmap getLeaves rec_trees
   vertical_boxes = fmap (B.vsep 0 B.top) $ L.transpose horizontal_boxes
 
+--createIndexBoxes :: Map.Map a a -> B.Box
 createIndexBoxes recs = index_box where
   rec_trees = recsToTrees $ Map.elems recs
   header_depth = getHeaderDepth rec_trees
