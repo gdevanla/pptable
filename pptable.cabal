@@ -14,9 +14,9 @@ extra-source-files:  README.md, CHANGELOG.md
 cabal-version:       >=1.10
 
 library
-  hs-source-dirs:      src
-  exposed-modules:     Text.PrettyPrint.Tabulate
-  build-depends:       base >= 4.7 && < 5
+  hs-source-dirs:     src
+  exposed-modules:    Text.PrettyPrint.Tabulate, Text.PrettyPrint.Tabulate.Example2
+  build-depends:      base >= 4.7 && < 5
                      , syb
                      , containers
                      , pretty
@@ -41,6 +41,24 @@ test-suite pptable-test
                      , boxes
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
+
+test-suite readme
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             README.lhs
+  build-depends:       base
+                     , pptable
+                     , tasty
+                     , HUnit
+                     , QuickCheck
+                     , tasty-hunit
+                     , tasty-quickcheck
+                     , containers
+                     , vector
+                     , boxes
+                     , markdown-unlit
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -pgmL markdown-unlit
+  default-language:    Haskell2010  
 
 source-repository head
   type:     git
