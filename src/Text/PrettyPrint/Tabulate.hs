@@ -256,7 +256,7 @@ class Boxable b where
   --printTableWithStyle :: (Data a, G.Generic a, GTabulate(Rep a)) => TablizeValueFormat -> b a -> IO ()
 
   -- | Similar to 'printTable' but rather than return IO (), returns a
-  -- 'Box' object that can be printed later on using 'printBox'
+  -- 'Box' object that can be printed later on, using 'printBox'
   renderTable :: (G.Generic a, GRecordMeta (Rep a)) => b a -> B.Box
 
   -- | Used for printing selected fields from Record types
