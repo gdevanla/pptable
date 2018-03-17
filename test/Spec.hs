@@ -18,41 +18,69 @@ import Test.Tasty.HUnit
 
 -- R0 has to derive from Data, since
 -- it will be nested
-data R0 =  R0 {test_string::String,
+data R01 =  R01 {test_string::String,
                test_integer::Integer,
                test_float::Float,
                test_double::Double}
   deriving (Data, Show, G.Generic)
--- data R01 =  R01 {r1_id::Int, nested_r::R0}
---   deriving (Show, G.Generic, Data)
--- data R3 =  R3 {r3_id::Int, nested_rlist::[R0]}
---   deriving (Show, G.Generic, Data)
--- data R4 = R4 {r4_id::Int, nested_rtuple::(R0,R0)}
---   deriving (Show, G.Generic, Data)
+instance T.CellValueFormatter R01
 
-instance T.Tabulate R0 T.ExpandWhenNested
--- instance T.Tabulate R01
--- instance T.Tabulate R3
--- instance T.Tabulate R4
+data R02 =  R02 {r2_id::Int, nested_r::R01}
+  deriving (Show, G.Generic, Data)
+instance T.CellValueFormatter R02
 
-getR0 = R0 {test_string="Jack-somone"
+data R03 =  R03 {r3_id::Int, nested_r02:: R02}
+          deriving (Show, G.Generic, Data)
+
+instance T.Tabulate R01 T.ExpandWhenNested
+instance T.Tabulate R02 T.ExpandWhenNested
+instance T.Tabulate R03 T.ExpandWhenNested
+
+getR01 = R01 {test_string="Jack-Jack"
            , test_integer=10
            , test_double=10.101
            , test_float=0.101021}
 
+getR02 = R02 {r2_id=10, nested_r=getR01}
+
+getR03 = R03 {r3_id=20, nested_r02=getR02}
+
 testList = testCase "testList"
   (
     do
-      assertEqual "test" 1 1
+      let records = Prelude.replicate 2 $ getR03
+          rows = B.rows $ T.renderTable records
+          cols = B.cols $ T.renderTable records
+      assertEqual "row count" rows 5
+      assertEqual "col count" cols 91
   )
 
-testLists = testGroup "test printing lists" [
-  testList
-  ]
+
+testMap = testCase "testMap"
+  (
+    do
+      let records = M.fromList [("key1", getR03), ("key2", getR03)]
+          rows = B.rows $ T.renderTable records
+          cols = B.cols $ T.renderTable records
+      assertEqual "row count" rows 5
+      assertEqual "col count" cols 100
+  )
+
+testVector = testCase "testVector"
+  (
+    do
+      let records = V.fromList [getR03, getR03]
+          rows = B.rows $ T.renderTable records
+          cols = B.cols $ T.renderTable records
+      assertEqual "row count" rows 5
+      assertEqual "col count" cols 91
+  )
 
 tests :: TestTree
 tests = testGroup "Tests" [
-  testLists
+  testList,
+  testMap,
+  testVector
   ]
 
 main = defaultMain tests
