@@ -1,5 +1,5 @@
 name:                pptable
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            Pretty Print containers in a tabular format
 description:         Please see README.md
 homepage:            https://github.com/gdevanla/pptable#readme
