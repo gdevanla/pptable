@@ -14,10 +14,11 @@ Textme.PrettyPrint.Tabulate : Print any list, vector or map of records as a well
   functionality. The extended functionality improves on previous
   release by printing nested records with hierarchical column headers
 
-* All Records types need to update their Tabulate instances to provide another flag
+* All Records types need to update their `Tabulate` instances to provide a flag, namely `ExpandWhenNested` or `DoNotExpandWhenNested`.
 
-* `ppTable` function has been renamed to `printTable` to make the function more descriptive
-* New function called printTableWithFlds has been added
+* `ppTable` function has been renamed to `printTable` to make the function name more descriptive.
+
+* New function called printTableWithFlds has been added.
 
 ### Example ###
 
@@ -42,7 +43,7 @@ Textme.PrettyPrint.Tabulate : Print any list, vector or map of records as a well
 #### Instance Declaration Requirements ####
 
 1. All records definitions should `derive` from `Data` and `Generic`
-2. All records that records attributes should have an instance of `CellValueFormatter`
+2. All field types that are record attributes should have an instance of `CellValueFormatter`. Default instances for standard types are already provided.
 3. All records that need to be printed as a table need to be an instance of `Tabulate`.
 4. Depending on if the nested record's fields have to be expanded, the
    Tabulate instance could either be
@@ -55,6 +56,7 @@ Textme.PrettyPrint.Tabulate : Print any list, vector or map of records as a well
     data FxCode = USD | EUR | JPY deriving (Show, Data, G.Generic)
     instance T.CellValueFormatter FxCode
 
+    -- This record type will be nested inside `Stock`
     data Price = Price {price::Double, fx_code::FxCode} deriving (Data, G.Generic, Show)
 
     -- if we do not want the `Price` records to be expanded into their own fields
@@ -62,12 +64,12 @@ Textme.PrettyPrint.Tabulate : Print any list, vector or map of records as a well
     instance T.Tabulate Price T.ExpandWhenNested
     instance T.CellValueFormatter Price
 
-    data Stock = Stock {ticker::String, local_price::Price, marketCap::Double} deriving (Data, G.Generic, Show)
+    data Stock = Stock {ticker::String, local_price::Price, marketCap::Double} deriving (
+        Data, G.Generic, Show)
     instance T.Tabulate Stock T.ExpandWhenNested
 
 ```
-
-Once we have our records and required instances created, we show how
+Once we have the records and required instances created, we can see how
 the created records can be viewed in the tabular format.
 
 ``` haskell
@@ -93,18 +95,22 @@ the created records can be viewed in the tabular format.
         T.printTable tickers_vector
 
         -- Sometimes records may have too many fields. In those case, specific fields can
-        -- be chosen to be printed. Currently, support for this functinality is
+        -- be chosen to be printed. Currently, support for this functionality is
         -- minimal. The 'headers` are not printed. In the future, a function that
         -- can take header labels as a list will be provided.
 
         putStrLn "\nPrinting specific fields. Note, currently field names are not printed"
         T.printTableWithFlds [T.DFld (price . local_price), T.DFld ticker] tickers_map
 
+        putStrLn "\nPrint nested record in a map, individually"
+        T.printTable $ fmap local_price tickers_map
+
 ```
 
 ### Print the examples ###
 
 ``` haskell
+
     main:: IO ()
     main = do
         printExamples
